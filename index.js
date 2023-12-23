@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 
 // middlewere 
@@ -31,46 +31,99 @@ async function run() {
     const taskCollection = client.db('planPilotDB').collection('task');
 
     // benefited collection 
-    app.get('/benefited',async (req, res) =>{
-        const result = await benefitedCollection.find().toArray()
-            res.send(result)
+    app.get('/benefited', async (req, res) => {
+      const result = await benefitedCollection.find().toArray()
+      res.send(result)
     })
 
 
-    app.post('/users', async (req, res)=>{
-        const user = req.body;
-        
-        const query = {email :  user.email}
-        const existingUser = await userCollection.findOne(query)
-        if(existingUser){
-            return res.send({message: 'user exists', insertedId: null}) 
-        }
-        const result = await userCollection.insertOne(user);
-        res.send(result)
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+
+      const query = { email: user.email }
+      const existingUser = await userCollection.findOne(query)
+      if (existingUser) {
+        return res.send({ message: 'user exists', insertedId: null })
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result)
     })
 
-    app.get('/users', async(req, res) =>{
-        const result = await userCollection.find().toArray()
-        res.send(result)
+    app.get('/users', async (req, res) => {
+      const result = await userCollection.find().toArray()
+      res.send(result)
     })
 
-    app.get('/user', async(req, res)=>{
-        let query ={}
-        if(req.query?.email){
-            query = {email: req.query.email}
-        }
-        const cursor = userCollection.find(query)
-        const result = await cursor.toArray()
-        res.send(result)
+    app.get('/user', async (req, res) => {
+      let query = {}
+      if (req.query?.email) {
+        query = { email: req.query.email }
+      }
+      const result =await userCollection.findOne(query)
+      res.send(result)
     })
 
     // task collection
-    app.post('/task', async(req, res)=>{
-        const task = req.body;
-        const result = await taskCollection.insertOne(task);
-        res.send(result)
+    app.post('/task', async (req, res) => {
+      const task = req.body;
+      const result = await taskCollection.insertOne(task);
+      res.send(result)
     })
-    
+
+    app.get('/task', async (req, res) => {
+      const email = req.query.email
+      const query = { userEmail: email }
+      // console.log(email);
+      const result = await taskCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    app.delete('/task/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await taskCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    app.get('/task/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await taskCollection.findOne(query)
+      res.send(result)
+    })
+
+
+    app.put('/task/:id', async (req, res) => {
+      const id = req.params.id;
+      const updateTask = req.body;
+      // console.log(updateTask);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const update = {
+        $set: {
+          task: updateTask.task,
+          description: updateTask.description,
+          deadline: updateTask.deadline,
+          priority: updateTask.priority
+        }
+      }
+      const result = await taskCollection.updateOne(filter, update, options)
+      res.send(result)
+    })
+
+    app.patch('/task/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const update = {
+        $set: {
+          complite: true
+        }
+      }
+      const result = await taskCollection.updateOne(filter, update, options)
+      res.send(result)
+    })
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -84,10 +137,10 @@ run().catch(console.dir);
 
 
 
-app.get('/', (req, res) =>{
-	res.send('server is running')
+app.get('/', (req, res) => {
+  res.send('server is running')
 })
 
-app.listen(port, () =>{
-	console.log(`server is runing from ${port}`)
+app.listen(port, () => {
+  console.log(`server is runing from ${port}`)
 })
